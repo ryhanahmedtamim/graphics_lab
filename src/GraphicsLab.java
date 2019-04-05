@@ -12,6 +12,7 @@ import java.awt.Color;
 import javax.swing.JToolBar;
 
 import com.sun.media.sound.AlawCodec;
+import com.sun.org.apache.xml.internal.serializer.ElemDesc;
 
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
@@ -34,6 +35,7 @@ public class GraphicsLab {
 	JButton btnSelect = new JButton("Select");
 	JButton btnSClip = new JButton("S Clip");
 	JButton btnMClip = new JButton("M Clip");
+	JButton btnPolygon = new JButton("Polygon");
 	private int k2 = 0;
 	private Graphics g;
 	int x1,y1,x2,y2;
@@ -41,6 +43,7 @@ public class GraphicsLab {
 	Point P2 = new Point(0,0);
 	int doNotRePaint = 0;
 	Point temPoint = new Point(0,0);
+	ArrayList<Point> polygonPoints = new ArrayList<Point>();
 	
 	Point windowPoint1;
 	Point windowPoint2;
@@ -56,12 +59,8 @@ public class GraphicsLab {
 	
 	ArrayList<Point> recPoints = new ArrayList<Point>();
 	
-	/**
-	 * Launch the application.
-	 */
-	
-	
-	
+	boolean flag = true;
+	boolean polygonFlag = true;
 	
 	public static void main(String[] args) {
 		EventQueue.invokeLater(new Runnable() {
@@ -89,35 +88,84 @@ public class GraphicsLab {
 		public void mouseReleased(MouseEvent e) {
 			// TODO Auto-generated method stub
 			
-			y2 = e.getY();
-			x2 = e.getX();			
-			P2.setX(x2);
-			P2.setY(y2);
-			removeALine();
-			paint();
-			
-			if(k2>0 && k2 <6)
+			if(k2!=9)
 			{
-				lines.add(new Line(points));
-				circles.add(tempCircle);
+				y2 = e.getY();
+				x2 = e.getX();			
+				P2.setX(x2);
+				P2.setY(y2);
+				removeALine();
+				paint();
+				
+				
+				
+				polygonPoints.add(P2);
+				
+				if(k2==1 || k2==2|| k2 ==3)
+				{
+					lines.add(new Line(points));
+				}			
+				else if( k2 ==6 || k2 == 5)
+				{
+					
+					circles.add(tempCircle);
+				}
+				
+				
+		
+					paintAllLine();
+					paintAllCircle();
+				
+			}
+			else if(k2==9)
+			{
+				if(polygonFlag)
+				{
+					y2 = e.getY();
+					x2 = e.getX();			
+					P2.setX(x2);
+					P2.setY(y2);
+					removeALine();
+					paint();
+					lines.add(new Line(points));
+				}
+				
+				//System.out.println(calculateDistance(polygonPoints.get(0), P2));
+				
+				if(calculateDistance(polygonPoints.get(0), P2) <= 2)
+				{
+					polygonFlag = false;
+				}
 			}
 			
-			
-	
-				paintAllLine();
-				paintAllCircle();
-			
+
 			
 			
 		}
 		
+		
+		
 		@Override
 		public void mousePressed(MouseEvent e) {
 			// TODO Auto-generated method stub
+			
+			
 			x1=x2=e.getX();
 			y1=y2=e.getY();
+			if(k2 == 9 && flag && polygonFlag)
+			{
+				
+				P1 = new Point(x1,y1);
+				polygonPoints.add(P1);
+				flag = false;
+			}
+			else if(k2==9 && polygonFlag) {
+				P1 = P2;
+			}
+			else {
+				P1 = new Point(x1,y1);
+			}
 			
-			P1 = new Point(x1,y1);
 			P2 = new Point(x2,y2);
 			removeRectangle();
 			paint();
@@ -132,31 +180,45 @@ public class GraphicsLab {
 		@Override
 		public void mouseDragged(MouseEvent e) {
 			
-			y2 = e.getY();
-			x2 = e.getX();
 			
-			P2.setX(x2);
-			P2.setY(y2);
-			//paint();
-			
-			if(k2==1 || k2==2 || k2==3)
+			if(k2!=9)
 			{
-				removeALine();
-			}
-			else if(k2 == 4 || k2 == 5)
-			{
-				removeACircle();
-			}
-			else if(k2 == 6 && btnSelect.getText().equals("Unselect")) {
+				y2 = e.getY();
+				x2 = e.getX();
 				
-				removeRectangle();
+				P2.setX(x2);
+				P2.setY(y2);
+				//paint();
+				
+				if(k2==1 || k2==2 || k2==3 || k2 == 9)
+				{
+					
+				}
+				else if(k2 == 4 || k2 == 5)
+				{
+					removeACircle();
+				}
+				else if(k2 == 6 && btnSelect.getText().equals("Unselect")) {
+					
+					removeRectangle();
+				}
+				paint();
 			}
-			paint();
+			else if(k2 == 9 && polygonFlag)
+			{
+				y2 = e.getY();
+				x2 = e.getX();
+				
+				P2.setX(x2);
+				P2.setY(y2);
+				removeALine();
+				paint();
+				
+			}
 			
 			
 			
 			
-			//System.out.println(P2);
 			
 		}
 		
@@ -258,19 +320,31 @@ public class GraphicsLab {
 					}
 				}
 				
-				CohenSutherland cohenSutherland = new CohenSutherland(windowPoint1, windowPoint2, lines);
-				//lines.clear();
+				if(!polygonFlag)
+				{
+					
+					SutherlandHodgMan sutherlandHodgMan = new SutherlandHodgMan(windowPoint1,windowPoint2, polygonPoints);
+					lines.clear();
+					polygonPoints = sutherlandHodgMan.clipPolygon();
+					for(int i=1; i<polygonPoints.size(); i++)
+					{
+						DigitalDifferential dda = new DigitalDifferential(polygonPoints.get(i), polygonPoints.get(i-1));
+						Line line = new Line(dda.getAllPoints());
+						lines.add(line);
+					}
 				
-				//System.out.println(cohenSutherland.clipAllLine());
-				lines = cohenSutherland.clipAllLine();
+				}
+				else
+				{
+					CohenSutherland cohenSutherland = new CohenSutherland(windowPoint1, windowPoint2, lines);
+					lines = cohenSutherland.clipAllLine();
+				}
 				
-				//frame.repaint();
+
 				
 				
 				paint();
-				//paintAllLine();
-				
-				//System.out.println("h");
+
 			}
 		});
 		btnSClip.setBounds(246, 25, 117, 25);//
@@ -293,17 +367,11 @@ public class GraphicsLab {
 					}
 				}
 				
-				//CohenSutherland cohenSutherland = new CohenSutherland(windowPoint1, windowPoint2, lines);
-				//lines.clear();
-				
-				//System.out.println(cohenSutherland.clipAllLine());
-				//lines = cohenSutherland.clipAllLine();
+
 				
 				MidPointClip midPointClip = new MidPointClip(windowPoint1, windowPoint2, lines, frame.getGraphics());
 				lines = midPointClip.clipAllLine();
-				
-				//frame.repaint();
-				
+							
 				
 				paint();
 				
@@ -312,6 +380,17 @@ public class GraphicsLab {
 		});
 		btnMClip.setBounds(246, 49, 117, 25);
 		frame.getContentPane().add(btnMClip);
+		
+		
+		btnPolygon.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				k2 = 9;
+				buttonDisable();
+				
+			}
+		});
+		btnPolygon.setBounds(123, 49, 122, 25);
+		frame.getContentPane().add(btnPolygon);
 		
 		
 		frame.getContentPane().addMouseMotionListener(mouseMotionListener);
@@ -363,6 +442,7 @@ public class GraphicsLab {
 			Bresenhum.setEnabled(true);
 			bCircle.setEnabled(true);
 			mCircle.setEnabled(true);
+			btnPolygon.setEnabled(true);
 		}
 		else if(k2==2)
 		{
@@ -371,6 +451,7 @@ public class GraphicsLab {
 			Bresenhum.setEnabled(true);
 			bCircle.setEnabled(true);
 			mCircle.setEnabled(true);
+			btnPolygon.setEnabled(true);
 		}
 		else if(k2 == 3)
 		{
@@ -379,6 +460,7 @@ public class GraphicsLab {
 			Bresenhum.setEnabled(false);
 			bCircle.setEnabled(true);
 			mCircle.setEnabled(true);
+			btnPolygon.setEnabled(true);
 		}
 		else if(k2 == 4)
 		{
@@ -387,6 +469,7 @@ public class GraphicsLab {
 			Bresenhum.setEnabled(true);
 			bCircle.setEnabled(false);
 			mCircle.setEnabled(true);
+			btnPolygon.setEnabled(true);
 		}
 		else if(k2 == 5)
 		{
@@ -395,6 +478,7 @@ public class GraphicsLab {
 			Bresenhum.setEnabled(true);
 			bCircle.setEnabled(true);
 			mCircle.setEnabled(false);
+			btnPolygon.setEnabled(true);
 		}
 		else if(k2 == 6)
 		{
@@ -405,7 +489,8 @@ public class GraphicsLab {
 				Bresenhum.setEnabled(false);
 				bCircle.setEnabled(false);
 				mCircle.setEnabled(false);
-				//btnMClip.setVisible(true);
+				//btnMClip.setVisible(true)
+				btnPolygon.setEnabled(false);
 				btnSClip.setVisible(true);
 			}
 			else {
@@ -416,7 +501,17 @@ public class GraphicsLab {
 				mCircle.setEnabled(true);
 				//btnMClip.setVisible(false);
 				btnSClip.setVisible(false);
+				
 			}
+		}
+		else if(k2 == 9)
+		{
+			Directline.setEnabled(true);
+			Dda.setEnabled(true);
+			Bresenhum.setEnabled(true);
+			bCircle.setEnabled(true);
+			mCircle.setEnabled(true);
+			btnPolygon.setEnabled(false);
 		}
 		
 	}
@@ -525,6 +620,11 @@ public class GraphicsLab {
 		}
 		points = allPoints;
 		
+	}
+	
+	public double calculateDistance(Point p1, Point p2)
+	{
+		return Math.sqrt(Math.pow(p1.getX()-p2.getX(), 2.0) + Math.pow(p1.getY()-p2.getY(), 2));
 	}
 	
 	public void midpointCircle(Graphics g, Point p1, Point p2)
@@ -711,6 +811,10 @@ public class GraphicsLab {
 	      {
 	    	  paintAllLine();
 		    	 k2 = 6;
+	      }
+	      else if(k2==9)
+	      {
+	    	  directlineMethod(g, p1, p2);
 	      }
 	     
 	}
